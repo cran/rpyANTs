@@ -1,6 +1,6 @@
 Package: rpyANTs
 Title: An Alternative Advanced Normalization Tools ('ANTs')
-Version: 0.0.2
+Version: 0.0.3
 Authors@R: 
     person("Zhengjia", "Wang", email = "dipterix.wang@gmail.com", 
             role = c("aut", "cre"))
@@ -14,16 +14,17 @@ License: Apache License 2.0
 Language: en-US
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: grDevices, rpymat (>= 0.1.6), reticulate (>= 1.26)
-Suggests: RNifti (>= 1.4.4), testthat (>= 3.0.0)
+Imports: grDevices, rpymat (>= 0.1.6), reticulate (>= 1.26), RNifti (>=
+        1.5.0)
+Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
 URL: http://dipterix.org/rpyANTs/
 BugReports: https://github.com/dipterix/rpyANTs/issues
 Copyright: For the rpyANTs package - Zhengjia Wang; For ANTs -
         ConsortiumOfANTS; For ANTsPy - ANTs Contributors.
 NeedsCompilation: no
-Packaged: 2023-07-16 12:59:53 UTC; dipterix
+Packaged: 2023-12-21 16:43:08 UTC; dipterix
 Author: Zhengjia Wang [aut, cre]
 Maintainer: Zhengjia Wang <dipterix.wang@gmail.com>
 Repository: CRAN
-Date/Publication: 2023-07-16 13:50:02 UTC
+Date/Publication: 2023-12-21 17:00:02 UTC

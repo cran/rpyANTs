@@ -33,6 +33,9 @@ AFFINE_TRANSFORM_TYPES <- c(
   "ScaleVersor3DTransform", "ScaleSkewVersor3DTransform"
 )
 
+MNI305_to_MNI152 <- structure(c(0.9975, 0.0146, -0.013, 0, -0.0073, 1.0009, -0.0093,
+            0, 0.0176, -0.0024, 0.9971, 0, -0.0429, 1.5496, 1.184, 1), dim = c(4L, 4L))
+
 validate_python <- function(verbose = TRUE) {
   verb <- function(expr) {
     if(verbose) {
@@ -95,6 +98,8 @@ install_ants <- function(python_ver = "3.9", verbose = TRUE) {
   if(length(ants_packages)) {
     rpymat::add_packages(packages = ants_packages, pip = TRUE)
   }
+
+  # rpymat::add_packages(packages = system.file("rpyants", package = "rpyANTs"), pip = TRUE)
 
   validate_python(verbose = verbose)
 }
