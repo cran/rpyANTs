@@ -1,6 +1,53 @@
 import os
 import re
 import shutil
+from typing import Union
+
+def r_user_data_dir() -> str:
+  package = "rpyANTs"
+  which = "data"
+  re = os.environ.get("R_USER_DATA_DIR", None)
+  if re is None:
+    re = os.environ.get("XDG_DATA_HOME", None)
+  if re is None:
+    os_type = "unknown"
+    try:
+      import platform
+      os_type = platform.system().lower()
+    except ImportError:
+      if os.name == "nt":
+        os_type = "windows"
+      elif os.name == "posix":
+        # check if file_path(home, "Library", "Application Support", "org.R-project.R") exists
+        mac_data_path = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "org.R-project.R")
+        if os.path.exists(mac_data_path):
+          os_type = "darwin"
+        else:
+          os_type = "linux"
+    
+    if os_type == "windows":
+      appdata = os.environ.get("APPDATA", None)
+      if appdata is not None:
+        re = os.path.join(appdata, "R", "data")
+    elif os_type == "darwin":
+      re = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "org.R-project.R")
+    if re is None:
+      re = os.path.join(os.path.expanduser("~"), ".local", "share")
+  re = os.path.join(re, "R", package)
+  return re
+
+def antspynet_cache_dir() -> str:
+  return os.path.join(r_user_data_dir(), "keras", "ANTsXNet")
+
+def try_import_antspynet():
+  try:
+    import antspynet
+    cache_dir = ensure_dir(antspynet_cache_dir())
+    if os.path.exists(cache_dir):
+      antspynet.set_antsxnet_cache_directory(cache_dir)
+    return antspynet
+  except ImportError:
+    return None
 
 def normalize_path(path, sep="/"):
   path = os.path.normpath(path)
@@ -38,7 +85,7 @@ def ensure_dir(path: str) -> str:
     os.makedirs(path)
   return normalize_path(path)
 
-def ensure_basename(filepath: str) -> str:
+def ensure_basename(filepath: Union[str, None]) -> str:
   '''
   Ensure that the directory of the file exists. If not, create it.
 
@@ -48,6 +95,8 @@ def ensure_basename(filepath: str) -> str:
   @return: The path to the file.
   @rtype: str
   '''
+  if filepath is None:
+    raise TypeError("Unable to find basename of path `None`")
   ensure_dir(os.path.dirname(filepath))
   return normalize_path(filepath)
 
@@ -88,10 +137,18 @@ def parse_bids_filename(path):
     'type': file_type,
     'components': {},
   }
+  last_entity = None
   for i, c in enumerate(components):
-    k, v = c.split("-")
-    parsed['components'][k] = v
-  
+    if c.find("-") == -1:
+      k, v = last_entity, c
+    else:
+      k, v = c.split("-")
+      last_entity = k
+    if k is not None:
+      if parsed['components'].get(k, None):
+        old_v = parsed['components'][k]
+        v = f"{ old_v }_{ v }"
+      parsed['components'][k] = v
   return parsed
 
 
@@ -114,6 +171,27 @@ def file_copy(src, dst, auto_mkdirs : bool = True):
   if auto_mkdirs:
     ensure_dir(os.path.dirname(dst))
   shutil.copyfile(src, dst)
+  return normalize_path(dst)
+
+def file_move(src, dst, auto_mkdirs : bool = True):
+  '''
+  Move a file from `src` to `dst`.
+
+  @param src: The source file.
+  @type src: str
+
+  @param dst: The destination file.
+  @type dst: str
+
+  @param auto_mkdirs: Automatically create the parent directories if they do not exist.
+  @type auto_mkdirs: bool
+
+  @return: The destination file.
+  @rtype: str
+  '''
+  if auto_mkdirs:
+    ensure_dir(os.path.dirname(dst))
+  shutil.move(src, dst)
   return normalize_path(dst)
 
 def to_bids_prefix(components : dict, **kwargs) -> str:

@@ -17,7 +17,7 @@ import ants
 from ..utils.paths import normalize_path, ensure_dir, file_path, parse_bids_filename, to_bids_prefix, file_copy, ensure_basename, unlink
 from ..utils.transforms import ants_AffineTransform_to_m44, M44_LPS_to_RAS, get_xform, set_xform
 from .halpern import halpern_coregister_ct_mri
-from .normalization import normalize_to_template_syn
+from .normalization import normalize_to_template_syn, normalization_with_atropos
 
 
 
@@ -29,7 +29,7 @@ class YAELPreprocess():
     def work_path(self):
         return self._work_path
     
-    def __init__(self, subject_code : str, work_path : str, image_types : list | tuple = ["CT", "T1w", "T2w", "FLAIR", "preopCT", "T1wContrast", "fGATIR", "DWI"] ):
+    def __init__(self, subject_code : str, work_path : str, image_types : Union[list, tuple] = ["CT", "T1w", "T2w", "FLAIR", "preopCT", "T1wContrast", "fGATIR", "DWI"] ):
         '''
         Initialize a YAELPreprocess object.
         
@@ -71,7 +71,7 @@ class YAELPreprocess():
         self._work_path = normalize_path( work_path )
         self.reload_images()
     
-    def _fix_image_path(self, parsed : dict, name = None) -> dict:
+    def _fix_image_path(self, parsed : dict, name = None) -> Union[dict, None]:
         if parsed is None:
             return None
         if parsed.get('components', None) is None:
@@ -115,7 +115,7 @@ class YAELPreprocess():
                         pass
         self._images = paths
     
-    def input_image_path(self, type : str, relative : bool = False):
+    def input_image_path(self, type : str, relative : bool = False) -> Union[str, None]:
         '''
         Get the path to the image.
 
@@ -167,7 +167,7 @@ class YAELPreprocess():
         if relative:
             return file_path(parsed['folder'], parsed['fullname'])
         return file_path(self._work_path, parsed['folder'], parsed['fullname'])
-    def expected_image_path(self, type : str, folder : str = None, name = None, **kwargs):
+    def expected_image_path(self, type : str, folder : Union[str, None] = None, name = None, **kwargs):
         '''
         Get the expected path to the image.
 
@@ -195,6 +195,8 @@ class YAELPreprocess():
         }
         parsed['components'].update(kwargs)
         parsed = self._fix_image_path(parsed, name = name)
+        if parsed is None:
+            raise ValueError(f"Unable to get image path for `{name}`")
         return file_path(self._work_path, parsed['folder'], parsed['fullname'])
     
     def set_image(self, type : str, path : str, **kwargs):
@@ -242,7 +244,10 @@ class YAELPreprocess():
         if existing_path is not None:
             unlink(existing_path)
         # file_copy(path, self.input_image_path(type))
-        ants.image_read(path).to_file(ensure_basename(self.input_image_path(type)))
+        target_path = self.input_image_path(type)
+        if target_path is None:
+            raise ValueError(f"Unable to determine path for image type `{ type }`")
+        ants.image_read(path).to_file(ensure_basename(target_path))
     
     @property
     def input_ct_path(self):
@@ -412,7 +417,7 @@ class YAELPreprocess():
     def map_to_template(self, 
                         template_name : str, template_path : str, template_mask_path = None,
                         native_type : str = "T1w", native_mask_path = None,
-                        use_images : str | list = "all",
+                        use_images : Union[str, list] = "all",
                         verbose : bool=True, **kwargs):
         '''
         Register an image to the template.
@@ -438,7 +443,7 @@ class YAELPreprocess():
         @param verbose: If True, print verbose output.
         @type verbose: bool
         
-        @param **kwargs: additional parameters passed to `normalize_to_template_syn`
+        @param **kwargs: additional parameters passed to `normalization_with_atropos`
         '''
         if not os.path.exists(template_path):
             raise FileNotFoundError(f"Invalid template path: {template_path}")
@@ -504,10 +509,10 @@ class YAELPreprocess():
         #     weights = [1.25]
         #     ants_outputdir='/Users/dipterix/rave_data/raw_dir/PAV038/rave-imaging/tmp/coregister_T1w_with_MNI152NLin2009bAsym'
         #     verbose=True
-        deformable_reg = normalize_to_template_syn(
+        deformable_reg = normalization_with_atropos(
             fix_path=fix_path,
             mov_paths=mov_paths,
-            outprefix=file_path(ants_outputdir, "deformable_"),
+            working_path = ants_outputdir,
             weights = weights,
             verbose = verbose, 
             **kwargs
@@ -544,10 +549,14 @@ class YAELPreprocess():
         # deformable_reg['warpedmovout'].to_file(ensure_basename(
         #     self.expected_image_path(native_type, "normalization/anat", name = native_type, space = template_name, transform = "deformable")
         # ))
-        file_copy(
-            src = deformable_reg['warpedmovout'], 
-            dst = self.expected_image_path(native_type, "normalization/anat", name = native_type, space = template_name, transform = "deformable")
-        )
+        if isinstance(deformable_reg['warpedmovout'], str):
+            file_copy(
+                src = deformable_reg['warpedmovout'], 
+                dst = self.expected_image_path(native_type, "normalization/anat", name = native_type, space = template_name, transform = "deformable")
+            )
+        else:
+            normalization_morph_path = self.expected_image_path(native_type, "normalization/anat", name = native_type, space = template_name, transform = "deformable")
+            deformable_reg['warpedmovout'].to_file(ensure_basename(normalization_morph_path))
         ###
         # fix_img = ants.image_read(fix_path)
         # mov_img = ants.image_read(mov_path)
@@ -567,10 +576,14 @@ class YAELPreprocess():
         # warped_template_img.to_file(ensure_basename(
         #     self.expected_image_path(native_type, "normalization/anat", name = template_name, space = native_type, transform = "deformable")
         # ))
-        file_copy(
-            src = deformable_reg['warpedfixout'], 
-            dst = self.expected_image_path(native_type, "normalization/anat", name = template_name, space = native_type, transform = "deformable")
-        )
+        if isinstance(deformable_reg['warpedfixout'], str):
+            file_copy(
+                src = deformable_reg['warpedfixout'], 
+                dst = self.expected_image_path(native_type, "normalization/anat", name = template_name, space = native_type, transform = "deformable")
+            )
+        else:
+            normalization_morph_path = self.expected_image_path(native_type, "normalization/anat", name = template_name, space = native_type, transform = "deformable")
+            deformable_reg['warpedfixout'].to_file(ensure_basename(normalization_morph_path))
         mappings = self.get_template_mapping(template_name = template_name, native_type = native_type, relative = True)
         if mappings is not None:
             log_file = ensure_basename( self.format_path(folder="normalization/log", name="mappings", ext="json", 
@@ -814,7 +827,7 @@ class YAELPreprocess():
             mapped_points['z'].values
         ]).transpose()
     
-    def generate_atlas_from_template(self, template_name : str, template_atlas_folder : str, native_folder : str = None, verbose : bool=True) -> str:
+    def generate_atlas_from_template(self, template_name : str, template_atlas_folder : str, native_folder : Union[str, None] = None, verbose : bool=True) -> str:
         '''
         Generate a native atlas from the template atlas.
 
