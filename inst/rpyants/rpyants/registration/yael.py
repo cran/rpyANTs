@@ -417,7 +417,7 @@ class YAELPreprocess():
     def map_to_template(self, 
                         template_name : str, template_path : str, template_mask_path = None,
                         native_type : str = "T1w", native_mask_path = None,
-                        use_images : Union[str, list] = "all",
+                        use_images : Union[str, list] = "all", use_antspynet : bool = True,
                         verbose : bool=True, **kwargs):
         '''
         Register an image to the template.
@@ -439,7 +439,10 @@ class YAELPreprocess():
 
         @param use_images: Images to use for normalization besides underlaying images. This can be "all" for all the image types, "none" for none, or a list of image types
         @type use_images: str or list of image types
-
+        
+        @param use_antspynet: Whether to try `antspynet` deep atropos; default is `True` and will use antspynet if possible, or fall-back to traditional atropos
+        @type use_antspynet: bool
+        
         @param verbose: If True, print verbose output.
         @type verbose: bool
         
@@ -515,6 +518,7 @@ class YAELPreprocess():
             working_path = ants_outputdir,
             weights = weights,
             verbose = verbose, 
+            use_antspynet = use_antspynet,
             **kwargs
         )
         # save forward (mov -> fix) transforms
@@ -846,7 +850,7 @@ class YAELPreprocess():
         @return: The path to the native atlas.
         @rtype: str
         '''
-        # template_atlas_folder = "/Users/dipterix/Dropbox (PennNeurosurgery)/RAVE/Samples/Tower-related/templates 2/Lead-DBS_atlases_MNI_ICBM_2009b_NLIN_ASYM/MNI_ICBM_2009b_NLIN_ASYM/atlases/OCD Response Tract Atlas (Li 2020)"
+        # template_atlas_folder = "/Users/dipterix/Dropbox (Personal)/projects/threeBrain/adhoc/YBA"
         if not os.path.exists(template_atlas_folder) or not os.path.isdir(template_atlas_folder):
             raise FileNotFoundError(f"Invalid template atlas folder: {template_atlas_folder}")
         if native_folder is None:
@@ -855,7 +859,10 @@ class YAELPreprocess():
             root_relpath = os.path.relpath(root_dir, template_atlas_folder)
             native_abspath = ensure_dir(file_path(self._work_path, "atlases", root_relpath))
             for filename in filenames:
-                if filename.endswith(".nii.gz") and not filename.startswith("."):
+                if filename.startswith("."):
+                    continue
+                filename_lowercase = filename.lower()
+                if filename_lowercase.endswith(".nii.gz") or filename_lowercase.endswith(".nii"):
                     template_path = file_path(root_dir, filename)
                     native_path = file_path(native_abspath, filename)
                     original_img = ants.image_read(template_path)

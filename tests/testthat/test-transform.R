@@ -6,6 +6,9 @@ test_that("ANTsTransform generics", {
   testthat::skip_if_not(rpyANTs:::rpymat_is_setup())
   testthat::skip_if_not(rpyANTs:::ants_available())
 
+  # FIXME: No check on Github MacOS due to ImageIO issue
+  testthat::skip_if(nzchar(Sys.getenv("GITHUB_OUTPUT")))
+
   cat("Testing ANTsTransform generics\n")
 
   cat("Loading numpy\n")

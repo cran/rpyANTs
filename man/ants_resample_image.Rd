@@ -35,24 +35,36 @@ See \code{ants$resample_image} for more details
 
 
 if(interactive() && ants_available()) {
-  ants <- load_ants()
-  fi <- as_ANTsImage(ants$get_ants_data("r16"))
 
-  # linear (interp_type = 0 or "linear)
-  filin <- ants_resample_image(fi, c(50, 60), TRUE, "linear")
+  sample_fpath <- as.character(ants$get_ants_data("r16"))
 
-  # nearest neighbor (interp_type = 1 or "nn)
-  finn <- ants_resample_image(fi, c(50, 60), TRUE, "nn")
+  if(file.exists(sample_fpath)) {
 
-  par(mfrow = c(1, 3), mar = c(0, 0, 0, 0))
-  pal <- gray.colors(256, start = 0)
+    try(silent = TRUE, {
 
-  image(fi[], asp = 1, axes = FALSE,
-        ylim = c(1,0), col = pal)
-  image(filin[], asp = 1, axes = FALSE,
-        ylim = c(1,0), col = pal)
-  image(finn[], asp = 1, axes = FALSE,
-        ylim = c(1,0), col = pal)
+      ants <- load_ants()
+      fi <- as_ANTsImage(ants$get_ants_data("r16"))
+
+      # linear (interp_type = 0 or "linear)
+      filin <- ants_resample_image(fi, c(50, 60), TRUE, "linear")
+
+      # nearest neighbor (interp_type = 1 or "nn)
+      finn <- ants_resample_image(fi, c(50, 60), TRUE, "nn")
+
+      par(mfrow = c(1, 3), mar = c(0, 0, 0, 0))
+      pal <- gray.colors(256, start = 0)
+
+      image(fi[], asp = 1, axes = FALSE,
+            ylim = c(1,0), col = pal)
+      image(filin[], asp = 1, axes = FALSE,
+            ylim = c(1,0), col = pal)
+      image(finn[], asp = 1, axes = FALSE,
+            ylim = c(1,0), col = pal)
+
+    })
+
+  }
+
 }
 
 
